@@ -46,7 +46,6 @@ def check_blake3_hash_and_print(file_path: str, blake3_hash_from_civitai: str) -
     return False
 
 
-
 def download_file(url: str, file_save_path: str,
                   file_size_kb_from_civitai: Optional[str] = None,
                   blake3_hash_from_civitai: Optional[str] = None) -> None:
@@ -64,6 +63,7 @@ def download_file(url: str, file_save_path: str,
         print(f"file_size_offline_in_float_civitai = {file_size_offline_converted_to_civitai}")
 
         if file_size_kb_from_civitai != file_size_offline_converted_to_civitai:
+            # TODO Fix this problem with size from civitai != offline
             if blake3_hash_from_civitai is not None \
                     and check_blake3_hash_and_print(file_save_path, blake3_hash_from_civitai):
                 print(Fore.GREEN + f'File {url} to {file_save_path} is downloaded yet.'
@@ -84,7 +84,7 @@ def download_file(url: str, file_save_path: str,
                     print(Fore.RED + 'downloaded hashes check fail. bad!!!')
                     print(Style.RESET_ALL)
                     return
-                    # TODO remove file??? or create invalid file mark (falename + .invalid)?
+                    # TODO remove file??? or create invalid file mark (filename + .invalid)?
         else:
             print(f'File {url} to {file_save_path} is complete. Skip download.')
             check_yet_exists_file = True
@@ -178,7 +178,8 @@ def main():
     folder_for_model_type = get_web_ui_folder_by_type(sd_webui_root_dir, type_of_model)
     print(f"folder_for_model = {folder_for_model_type}")
 
-    folder_for_current_model = path.join(folder_for_model_type, f"{model_data_json['id']}_" + model_page_name_procesed)
+    folder_for_current_model = path.join(folder_for_model_type,
+                                         f"{model_data_json['id']}_" + model_page_name_procesed)
 
     Path(folder_for_current_model).mkdir(parents=True, exist_ok=True)
     print(f"Create folder {folder_for_current_model} or use exists ok")
@@ -205,6 +206,7 @@ def main():
 
         print("files:")
         for current_file in model_version_json_data["files"]:
+
             print(f"\tname: {current_file['name']}")
             print(f"\ttype: {current_file['type']}")
             print(f"\tsizeKB raw: {current_file['sizeKB']}")
@@ -251,7 +253,7 @@ def main():
                 print(Style.RESET_ALL)
                 print("I will not download this!!Unsafe. You can disable it with --disable-sec-checks true")
 
-            for index, image_json in enumerate(model_version_json_data["images"]):  # print(index, item)
+            for index, image_json in enumerate(model_version_json_data["images"]):
                 path_for_save_image = path.join(path_for_model_samples_folder, str(index) + ".jpg")
                 path_for_json = path.join(path_for_model_samples_folder, str(index) + ".json")
                 path_for_json_meta = path.join(path_for_model_samples_folder, str(index) + ".meta")
