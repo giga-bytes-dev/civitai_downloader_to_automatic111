@@ -285,8 +285,9 @@ def main():
                 print("I will not download this!!Unsafe. You can disable it with --disable-sec-checks true")
 
             for index, image_json in enumerate(model_version_json_data["images"]):
+                sample_json_data_name = str(index) + ".json"
                 path_for_save_image = path.join(path_for_model_samples_folder, str(index) + ".jpg")
-                path_for_json = path.join(path_for_model_samples_folder, str(index) + ".json")
+                path_for_json = path.join(path_for_model_samples_folder, sample_json_data_name)
                 path_for_json_meta = path.join(path_for_model_samples_folder, str(index) + ".meta")
                 if args.no_download:
                     print(f"simulate download(url={image_json['url']}, path_for_save_image={path_for_save_image}))")
@@ -295,6 +296,7 @@ def main():
 
                 with open(path_for_json, 'w') as f:
                     dump(image_json, f)
+                    print(f"save {sample_json_data_name} ok")
 
                 with open(path_for_json_meta, 'w') as f:
                     dump(image_json['meta'], f)
