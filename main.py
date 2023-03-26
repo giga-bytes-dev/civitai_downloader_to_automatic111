@@ -242,7 +242,6 @@ def main():
             print(f"\ttype: {current_file['type']}")
             print(f"\tsizeKB raw: {current_file['sizeKB']}")
             print(f"\tsizeKB raw type: {type(current_file['sizeKB'])}")
-
             # on all ok
             #print(f"\t\ttype: {current_file['type']}")
             #"pickleScanResult": "Success",
@@ -265,8 +264,8 @@ def main():
             if "hashes" in current_file and "BLAKE3" in current_file['hashes']['BLAKE3']:
                 file_hash_blake3 = current_file['hashes']['BLAKE3']
             else:
-                print(Fore.RED + 'No hash in json from cilivai. Hash no calculated yet?')
-                print(Fore.RED + 'Hash check disabled now')
+                print(Fore.RED + '\tNo hash in json from cilivai. Hash no calculated yet?')
+                print(Fore.RED + '\tHash check disabled now')
                 print(Style.RESET_ALL)
 
             if file_model_is_safe or args.disable_sec_checks:
