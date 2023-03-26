@@ -1,4 +1,5 @@
 import argparse
+import json
 import math
 import os
 import platform
@@ -162,6 +163,7 @@ CIVITAI_MODEL_REGEX_PATTERN = re.compile(r"^((http|https)://)civitai[.]com/model
 # 'Checkpoint' -> 'models\Stable-diffusion'
 # LORA -> 'models\LoRA'
 # Poses -> models\Poses
+# -> extensions\sd-webui-additional-networks\models\lora\Locon
 def get_web_ui_folder_by_type(base_path: str, type_str: str) -> str:
     if type_str == "Checkpoint":
         return path.join(base_path, "models", "Stable-diffusion")
@@ -169,6 +171,8 @@ def get_web_ui_folder_by_type(base_path: str, type_str: str) -> str:
         return path.join(base_path, "models", "LoRA")
     elif type_str == "Poses":
         return path.join(base_path, "models", "Poses")
+    elif type_str == "LoCon":
+        return path.join(base_path, "extensions", "sd-webui-additional-networks", "models", "lora", "Locon")
     else:
         raise Exception("Not supported type yet?")
 
