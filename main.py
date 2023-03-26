@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import platform
 import re
@@ -67,7 +68,7 @@ def check_blake3_hash_and_print(file_path: str, blake3_hash_from_civitai: str) -
 
 
 def download_file(url: str, file_save_path: str,
-                  file_size_kb_from_civitai: Optional[str] = None,
+                  file_size_kb_from_civitai: Optional[float] = None, # 6207.875
                   blake3_hash_from_civitai: Optional[str] = None) -> None:
     # r = head(url)
     # file_size_online = int(r.headers.get('content-length', 0))
@@ -76,14 +77,13 @@ def download_file(url: str, file_save_path: str,
 
     if file_save.is_file() and file_size_kb_from_civitai is not None:
         file_size_offline = file_save.stat().st_size
-        file_size_offline_converted_to_civitai = toFixed(round(float(file_size_offline/1024), 9), 9)
+        file_size_offline_converted_to_civitai = float(file_size_offline/1024)
 
         print(f"file_size_online = {file_size_kb_from_civitai}")
         print(f"file_size_offline bytes = {file_size_offline}")
         print(f"file_size_offline_in_float_civitai = {file_size_offline_converted_to_civitai}")
 
-        if file_size_kb_from_civitai != file_size_offline_converted_to_civitai:
-            # TODO Fix this problem with size from civitai != offline
+        if not math.isclose(file_size_kb_from_civitai, file_size_offline_converted_to_civitai):
             if blake3_hash_from_civitai is not None \
                     and check_blake3_hash_and_print(file_save_path, blake3_hash_from_civitai):
                 print(Fore.GREEN + f'File {url} to {file_save_path} is downloaded yet.'
@@ -277,7 +277,7 @@ def main():
 
                     download_file(url=current_file['downloadUrl'],
                                   file_save_path=download_model_data_entry_path,
-                                  file_size_kb_from_civitai=str(current_file['sizeKB']),
+                                  file_size_kb_from_civitai=current_file['sizeKB'],
                                   blake3_hash_from_civitai=file_hash_blake3)
             else:
                 print(Fore.RED + 'I will not download this!!Unsafe')
