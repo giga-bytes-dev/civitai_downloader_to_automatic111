@@ -220,18 +220,29 @@ def main():
             file_model_is_safe = False
             if current_file['pickleScanResult'] == "Success" and current_file['virusScanResult'] == "Success":
                 file_model_is_safe = True
+            file_hash_blake3 = None
+
+            if "hashes" in current_file and "BLAKE3" in current_file['hashes']['BLAKE3']:
+                file_hash_blake3 = current_file['hashes']['BLAKE3']
+            else:
+                print(Fore.RED + 'No hash in json from cilivai. Hash no calculated yet?')
+                print(Fore.RED + 'Hash check disabled now')
+                print(Style.RESET_ALL)
 
             if file_model_is_safe or args.disable_sec_checks:
                 if args.no_download:
                     print(f"simulate download(url={current_file['downloadUrl']}, "
                           f"download_model_data_entry_path={download_model_data_entry_path})")
                 else:
+
                     download_file(url=current_file['downloadUrl'],
                                   file_save_path=download_model_data_entry_path,
                                   file_size_kb_from_civitai=str(current_file['sizeKB']),
-                                  blake3_hash_from_civitai=current_file['hashes']['BLAKE3'])
+                                  blake3_hash_from_civitai=file_hash_blake3)
             else:
-                print("I will not download this!!Unsafe")
+                print(Fore.RED + 'I will not download this!!Unsafe')
+                print(Style.RESET_ALL)
+                print("I will not download this!!Unsafe. You can disable it with --disable-sec-checks true")
 
             for index, image_json in enumerate(model_version_json_data["images"]):  # print(index, item)
                 path_for_save_image = path.join(path_for_model_samples_folder, str(index) + ".jpg")
