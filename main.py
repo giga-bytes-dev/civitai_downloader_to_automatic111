@@ -261,12 +261,13 @@ def main():
                 file_model_is_safe = True
             file_hash_blake3 = None
 
-            if "hashes" in current_file and "BLAKE3" in current_file['hashes']['BLAKE3']:
+            try:
                 file_hash_blake3 = current_file['hashes']['BLAKE3']
-            else:
-                print(Fore.RED + '\tNo hash in json from cilivai. Hash no calculated yet?')
+            except KeyError:
+                print(Fore.RED + '\tNo hash in json from cilivai. Hash no calculated on servers of cilivai yet?')
                 print(Fore.RED + '\tHash check disabled now')
                 print(Style.RESET_ALL)
+
 
             if file_model_is_safe or args.disable_sec_checks:
                 if args.no_download:
