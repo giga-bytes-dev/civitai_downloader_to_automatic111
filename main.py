@@ -22,10 +22,22 @@ from tqdm import tqdm
 remove_non_english_with_dots = lambda s: re.sub(r'[^a-zA-Z\d\s\n\.]', ' ', s)
 remove_non_english_without_dots = lambda s: re.sub(r'[^a-zA-Z\d\s\n\.]', ' ', s)
 
+def remove_multiple_underscores(text):
+    result = []
+    prev_char = None
+    for char in text:
+        if char == "_" and prev_char == "_":
+            continue
+        result.append(char)
+        prev_char = char
+    return "".join(result)
+
 def process_str_string(input: str, with_dots: bool) -> str:
     if with_dots:
-        return remove_non_english_with_dots(input).rstrip().lstrip().replace(" ", "_")
-    return remove_non_english_without_dots(input).rstrip().lstrip().replace(" ", "_")
+        first_step = remove_non_english_with_dots(input).rstrip().lstrip().replace(" ", "_")
+    else:
+        first_step = remove_non_english_without_dots(input).rstrip().lstrip().replace(" ", "_")
+    return remove_multiple_underscores(first_step)
 
 def creation_date(path_to_file):
     """
