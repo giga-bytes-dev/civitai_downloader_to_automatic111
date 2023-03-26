@@ -8,7 +8,7 @@ from os import path
 from os.path import abspath
 from pathlib import Path
 from re import Match
-from typing import Optional
+from typing import Optional, Dict
 import datetime as dt
 
 from blake3 import blake3
@@ -158,6 +158,13 @@ def get_web_ui_folder_by_type(base_path: str, type_str: str) -> str:
         raise Exception("Not supported type yet?")
 
 
+def find_exist_image_name_by_hash(all_names_and_hashes_dict: Dict[str, str], hash: str) -> Optional[str]:
+    for search_file_name, search_file_hash in all_names_and_hashes_dict.items():
+        if search_file_hash == hash:
+            print(f"Skip download exists image what located at name {search_file_name}")
+            return search_file_name
+    return None
+
 def main():
     parser = argparse.ArgumentParser(description='Download from civitai')
     parser.add_argument('--sd-webui-root-dir', type=str, help='stable-diffusion-webui dir', default="sd-webui-root-dir")
@@ -284,11 +291,46 @@ def main():
                 print(Style.RESET_ALL)
                 print("I will not download this!!Unsafe. You can disable it with --disable-sec-checks true")
 
+            all_names_and_hashes = dict()
+            max_index_int_name = 1
+
+            for current_file in os.listdir(path=path_for_model_samples_folder):
+                if not current_file.endswith('.json'):
+                    continue
+                path_to_current_json = path.join(path_for_model_samples_folder, current_file)
+
+                current_file_name_without_ext = Path(current_file).stem
+                if current_file_name_without_ext.isdigit():
+                    current_num = int(current_file_name_without_ext)
+                    if current_num > max_index_int_name:
+                        max_index_int_name = current_num
+
+                with open(path_to_current_json, 'r') as fi:
+                    dict_current_json = json.load(fi)
+                    all_names_and_hashes[current_file_name_without_ext] = dict_current_json["hash"]
+
+
+            print(f"max_index_int_name = {max_index_int_name}")
+
             for index, image_json in enumerate(model_version_json_data["images"]):
-                sample_json_data_name = str(index) + ".json"
-                path_for_save_image = path.join(path_for_model_samples_folder, str(index) + ".jpg")
+
+                image_name_by_hash = find_exist_image_name_by_hash(all_names_and_hashes_dict=all_names_and_hashes,
+                                                                   hash=image_json["hash"])
+
+                # json with hash was founded
+                if image_name_by_hash is not None:
+                    if not Path(path.join(path_for_model_samples_folder, image_name_by_hash + ".jpg")).is_file():
+                        print(Fore.RED + '\tJson file exists but jpg file no found!!')
+                        print(Style.RESET_ALL)
+                    continue
+
+
+
+                max_index_int_name += 1
+                sample_json_data_name = str(max_index_int_name) + ".json"
+                path_for_save_image = path.join(path_for_model_samples_folder, str(max_index_int_name) + ".jpg")
                 path_for_json = path.join(path_for_model_samples_folder, sample_json_data_name)
-                path_for_json_meta = path.join(path_for_model_samples_folder, str(index) + ".meta")
+                path_for_json_meta = path.join(path_for_model_samples_folder, str(max_index_int_name) + ".meta")
                 if args.no_download:
                     print(f"simulate download(url={image_json['url']}, path_for_save_image={path_for_save_image}))")
                 else:
