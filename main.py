@@ -292,7 +292,7 @@ def main():
                 print("I will not download this!!Unsafe. You can disable it with --disable-sec-checks true")
 
             all_names_and_hashes = dict()
-            max_index_int_name = 1
+            max_index_int_name = 0
 
             for current_file in os.listdir(path=path_for_model_samples_folder):
                 if not current_file.endswith('.json'):
