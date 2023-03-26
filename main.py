@@ -210,10 +210,17 @@ def main():
             print(f"\tsizeKB raw: {current_file['sizeKB']}")
             print(f"\tsizeKB raw type: {type(current_file['sizeKB'])}")
 
+            # on all ok
             #print(f"\t\ttype: {current_file['type']}")
             #"pickleScanResult": "Success",
             #"pickleScanMessage": "No Pickle imports",
             #"virusScanResult": "Success",
+
+            # after upload one second ago.  No hash and no scan
+            # "pickleScanResult": "Pending",
+            # "pickleScanMessage": null,
+            # "virusScanResult": "Pending",
+
             print(f"\tdownload_url: {current_file['downloadUrl']}")
             download_model_data_entry_path = path.join(model_version_folder, current_file['name'])
 
