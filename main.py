@@ -58,9 +58,6 @@ def creation_date(path_to_file):
             return stat.st_mtime
 
 
-def toFixed(numObj, digits=0):
-    return f"{numObj:.{digits}f}"
-
 def compute_blake3(file_path: str) -> str:
     hash_blake3 = blake3()
     with open(file_path, "rb") as f:
