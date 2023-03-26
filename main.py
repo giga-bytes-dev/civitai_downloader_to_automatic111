@@ -149,11 +149,14 @@ CIVITAI_MODEL_REGEX_PATTERN = re.compile(r"^((http|https)://)civitai[.]com/model
 # types of civitai resources
 # 'Checkpoint' -> 'models\Stable-diffusion'
 # LORA -> 'models\LoRA'
+# Poses -> models\Poses
 def get_web_ui_folder_by_type(base_path: str, type_str: str) -> str:
     if type_str == "Checkpoint":
         return path.join(base_path, "models", "Stable-diffusion")
     elif type_str == "LORA":
         return path.join(base_path, "models", "LoRA")
+    elif type_str == "Poses":
+        return path.join(base_path, "models", "Poses")
     else:
         raise Exception("Not supported type yet?")
 
