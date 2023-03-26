@@ -1,4 +1,6 @@
 import argparse
+import os
+import platform
 import re
 from json import dump
 from os import path
@@ -6,6 +8,7 @@ from os.path import abspath
 from pathlib import Path
 from re import Match
 from typing import Optional
+import datetime as dt
 
 from blake3 import blake3
 from colorama import Fore, Style
@@ -22,6 +25,23 @@ def process_str_string(input: str, with_dots: bool) -> str:
     if with_dots:
         return remove_non_english_with_dots(input).rstrip().lstrip().replace(" ", "_")
     return remove_non_english_without_dots(input).rstrip().lstrip().replace(" ", "_")
+
+def creation_date(path_to_file):
+    """
+    Try to get the date that a file was created, falling back to when it was
+    last modified if that isn't possible.
+    See http://stackoverflow.com/a/39501288/1709587 for explanation.
+    """
+    if platform.system() == 'Windows':
+        return os.path.getctime(path_to_file)
+    else:
+        stat = os.stat(path_to_file)
+        try:
+            return stat.st_birthtime
+        except AttributeError:
+            # We're probably on Linux. No easy way to get creation dates here,
+            # so we'll settle for when its content was last modified.
+            return stat.st_mtime
 
 
 def toFixed(numObj, digits=0):
@@ -186,6 +206,17 @@ def main():
 
     path_for_model_json = path.join(folder_for_current_model, "civitai_model.json")
     print(f"path_for_model_json = {path_for_model_json}")
+
+    path_for_model_json_Path = Path(path_for_model_json)
+    if path_for_model_json_Path.is_file():
+        print(f"path_for_json = {path_for_model_json}")
+        print(f"creation_date = {creation_date(path_for_model_json)}")
+        file_time = dt.datetime.fromtimestamp(creation_date(path_for_model_json))
+        print(file_time.strftime("%d_%m_%Y__%H_%M"))
+        new_name_of_current_file = file_time.strftime("civitai_model_%d_%m_%Y__%H_%M") + ".json"
+        new_file_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_file)
+        path_for_model_json_Path.rename(new_file_full_path)
+        print(f"Rename current {path_for_model_json} to {new_file_full_path}")
 
     with open(path_for_model_json, 'w') as f:
         dump(model_data_json, f)
