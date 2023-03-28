@@ -104,7 +104,8 @@ def download_file(url: str, file_save_path: str,
             print(Fore.YELLOW + f'File {url} to {file_save_path} is incomplete. Start download with rewrite.')
             print(Style.RESET_ALL)
             # TODO rename incompleted file to .incompleted
-            simple_download(url, str(file_save), file_size_offline)
+
+            simple_download(url, str(file_save_path))
             if blake3_hash_from_civitai is not None:
                 if check_blake3_hash_and_print(file_save_path, blake3_hash_from_civitai):
                     print(Fore.GREEN + 'downloaded hashes checked. All ok.')
