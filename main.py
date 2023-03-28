@@ -6,7 +6,7 @@ import platform
 import re
 from json import dump
 from os import path
-from os.path import abspath
+from os.path import abspath, join
 from pathlib import Path
 from re import Match
 from typing import Optional, Dict
@@ -77,16 +77,14 @@ def check_blake3_hash_and_print(file_path: str, blake3_hash_from_civitai: str) -
     return False
 
 
-def download_file(url: str, file_save_path: str,
-                  file_size_kb_from_civitai: Optional[float] = None, # 6207.875
+def download_file(url: str, file_save_path_str_path: str,
+                  remove_incompleted_files: bool,
+                  file_size_kb_from_civitai: Optional[float] = None,  # 6207.875
                   blake3_hash_from_civitai: Optional[str] = None) -> None:
-    # r = head(url)
-    # file_size_online = int(r.headers.get('content-length', 0))
+    file_save_path = Path(file_save_path_str_path)
 
-    file_save = Path(file_save_path)
-
-    if file_save.is_file() and file_size_kb_from_civitai is not None:
-        file_size_offline = file_save.stat().st_size
+    if file_save_path.is_file() and file_size_kb_from_civitai is not None:
+        file_size_offline = file_save_path.stat().st_size
         file_size_offline_converted_to_civitai = float(file_size_offline/1024)
 
         print(f"file_size_online = {file_size_kb_from_civitai}")
@@ -95,19 +93,37 @@ def download_file(url: str, file_save_path: str,
 
         if not math.isclose(file_size_kb_from_civitai, file_size_offline_converted_to_civitai):
             if blake3_hash_from_civitai is not None \
-                    and check_blake3_hash_and_print(file_save_path, blake3_hash_from_civitai):
-                print(Fore.GREEN + f'File {url} to {file_save_path} is downloaded yet.'
+                    and check_blake3_hash_and_print(file_save_path_str_path, blake3_hash_from_civitai):
+                print(Fore.GREEN + f'File {url} to {file_save_path_str_path} is downloaded yet.'
                                    f' size from civitai != offline, but hashes are equals (bug in code)?')
                 print(Style.RESET_ALL)
                 return
 
-            print(Fore.YELLOW + f'File {url} to {file_save_path} is incomplete. Start download with rewrite.')
+            print(Fore.YELLOW + f'File {url} to {file_save_path_str_path} is incomplete. '
+                                f'Start download with rename incomplete file.')
             print(Style.RESET_ALL)
-            # TODO rename incompleted file to .incompleted
+
+            inc_file_save_str_path = path.join(file_save_path.parent, file_save_path.name + ".inc")
+
+            if Path(inc_file_save_str_path).is_file():
+                print(Fore.YELLOW + f'Detected yet exists old incompleted file. Remove')
+                if remove_incompleted_files:
+                    os.remove(inc_file_save_str_path)
+                else:
+                    print(Fore.YELLOW + f'Cannot remove incompleted_file.exit!')
+                    exit(1)
+
+            print(Fore.YELLOW + f'Rename {file_save_path_str_path} to {inc_file_save_str_path}')
+            Path(file_save_path_str_path).rename(inc_file_save_str_path)
+            print(Fore.GREEN + f'Rename ok')
+            print(Style.RESET_ALL)
+
+            if remove_incompleted_files:
+                os.remove(inc_file_save_str_path)
 
             simple_download(url, str(file_save_path))
             if blake3_hash_from_civitai is not None:
-                if check_blake3_hash_and_print(file_save_path, blake3_hash_from_civitai):
+                if check_blake3_hash_and_print(file_save_path_str_path, blake3_hash_from_civitai):
                     print(Fore.GREEN + 'downloaded hashes checked. All ok.')
                     print(Style.RESET_ALL)
                     return
@@ -117,10 +133,10 @@ def download_file(url: str, file_save_path: str,
                     return
                     # TODO remove file??? or create invalid file mark (filename + .invalid)?
         else:
-            print(f'File {url} to {file_save_path} is complete. Skip download.')
+            print(f'File {url} to {file_save_path_str_path} is complete. Skip download.')
             check_yet_exists_file = True
             if blake3_hash_from_civitai is not None and check_yet_exists_file:
-                if check_blake3_hash_and_print(file_save_path, blake3_hash_from_civitai):
+                if check_blake3_hash_and_print(file_save_path_str_path, blake3_hash_from_civitai):
                     print(Fore.GREEN + 'check exists file hash checked ok.')
                     print(Style.RESET_ALL)
                     return
@@ -130,10 +146,10 @@ def download_file(url: str, file_save_path: str,
                     # TODO remove file??? or create invalid file mark (falename + .invalid)?
                     return
     else:
-        print(f'File {url} to {file_save_path} does not exist. Start download.')
-        simple_download(url, str(file_save))
+        print(f'File {url} to {file_save_path_str_path} does not exist. Start download.')
+        simple_download(url, str(file_save_path))
         if blake3_hash_from_civitai is not None:
-            if check_blake3_hash_and_print(file_save_path, blake3_hash_from_civitai):
+            if check_blake3_hash_and_print(file_save_path_str_path, blake3_hash_from_civitai):
                 print(f"check downloaded file hash checked ok.")
                 return
             else:
@@ -187,6 +203,7 @@ def main():
     parser.add_argument('--sd-webui-root-dir', type=str, help='stable-diffusion-webui dir', default="sd-webui-root-dir")
     parser.add_argument('--no-download', type=bool, help='no download', default=False)
     parser.add_argument('--disable-sec-checks', type=bool, help='no download', default=False)
+    parser.add_argument('--no-remove-incompleted-files', action='store_true')
     parser.add_argument('url', type=str)
     args = parser.parse_args()
 
@@ -300,7 +317,8 @@ def main():
                 else:
 
                     download_file(url=current_file['downloadUrl'],
-                                  file_save_path=download_model_data_entry_path,
+                                  file_save_path_str_path=download_model_data_entry_path,
+                                  remove_incompleted_files=not args.no_remove_incompleted_files,
                                   file_size_kb_from_civitai=current_file['sizeKB'],
                                   blake3_hash_from_civitai=file_hash_blake3)
             else:
@@ -341,8 +359,6 @@ def main():
                         print(Style.RESET_ALL)
                     continue
 
-
-
                 max_index_int_name += 1
                 sample_json_data_name = str(max_index_int_name) + ".json"
                 path_for_save_image = path.join(path_for_model_samples_folder, str(max_index_int_name) + ".jpg")
@@ -359,6 +375,7 @@ def main():
 
                 with open(path_for_json_meta, 'w') as f:
                     dump(image_json['meta'], f)
+
 
 
 if __name__ == '__main__':
