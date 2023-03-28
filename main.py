@@ -203,7 +203,7 @@ def main():
     parser.add_argument('--sd-webui-root-dir', type=str, help='stable-diffusion-webui dir', default="sd-webui-root-dir")
     parser.add_argument('--no-download', type=bool, help='no download', default=False)
     parser.add_argument('--disable-sec-checks', type=bool, help='no download', default=False)
-    parser.add_argument('--no-remove-incompleted-files', action='store_true')
+    parser.add_argument('--remove-incompleted-files', action='store_true')
     parser.add_argument('url', type=str)
     args = parser.parse_args()
 
@@ -318,7 +318,7 @@ def main():
 
                     download_file(url=current_file['downloadUrl'],
                                   file_save_path_str_path=download_model_data_entry_path,
-                                  remove_incompleted_files=not args.no_remove_incompleted_files,
+                                  remove_incompleted_files=args.remove_incompleted_files,
                                   file_size_kb_from_civitai=current_file['sizeKB'],
                                   blake3_hash_from_civitai=file_hash_blake3)
             else:
