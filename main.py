@@ -187,6 +187,8 @@ def get_web_ui_folder_by_type(base_path: str, type_str: str) -> str:
         return path.join(base_path, "models", "Poses")
     elif type_str == "LoCon":
         return path.join(base_path, "extensions", "sd-webui-additional-networks", "models", "lora", "Locon")
+    elif type_str == "TextualInversion":
+        return path.join(base_path, "embeddings")
     else:
         raise Exception("Not supported type yet?")
 
