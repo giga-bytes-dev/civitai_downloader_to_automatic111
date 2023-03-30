@@ -85,7 +85,7 @@ def download_file(url: str, file_save_path_str_path: str,
 
     if file_save_path.is_file() and file_size_kb_from_civitai is not None:
         file_size_offline = file_save_path.stat().st_size
-        file_size_offline_converted_to_civitai = float(file_size_offline/1024)
+        file_size_offline_converted_to_civitai = float(file_size_offline / 1024)
 
         print(f"file_size_online = {file_size_kb_from_civitai}")
         print(f"file_size_offline bytes = {file_size_offline}")
@@ -157,15 +157,16 @@ def download_file(url: str, file_save_path_str_path: str,
                 return
                 # TODO remove file??? or create invalid file mark (falename + .invalid)?
 
+
 def simple_download(url: str, fname: str, chunk_size=4096):
     resp = get(url, stream=True)
     total = int(resp.headers.get('content-length', 0))
     with open(fname, 'wb') as file, tqdm(
-        desc=Path(fname).name,
-        total=total,
-        unit='iB',
-        unit_scale=True,
-        unit_divisor=1024,
+            desc=Path(fname).name,
+            total=total,
+            unit='iB',
+            unit_scale=True,
+            unit_divisor=1024,
     ) as bar:
         for data in resp.iter_content(chunk_size=chunk_size):
             size = file.write(data)
