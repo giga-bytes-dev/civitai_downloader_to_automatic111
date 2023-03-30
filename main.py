@@ -10,6 +10,7 @@ from os.path import abspath
 from pathlib import Path
 from re import Match
 from typing import Optional, Dict
+from datetime import datetime
 
 import click
 from blake3 import blake3
@@ -338,8 +339,9 @@ def download_model(sd_webui_root_dir,
         print(f"path_for_json = {path_for_model_json}")
         print(f"creation_date = {creation_date(path_for_model_json)}")
         file_time = dt.datetime.fromtimestamp(creation_date(path_for_model_json))
-        print(file_time.strftime("%d_%m_%Y__%H_%M"))
-        new_name_of_current_file = file_time.strftime("civitai_model_%d_%m_%Y__%H_%M") + ".json"
+        #print(file_time.strftime("%d_%m_%Y__%H_%M"))
+        current_date_time = datetime.now().strftime("%d_%m_%Y__%H_%M")
+        new_name_of_current_file = file_time.strftime("civitai_model_was_%d_%m_%Y__%H_%M_now_" + current_date_time) + ".json"
         new_file_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_file)
         path_for_model_json_Path.rename(new_file_full_path)
         print(f"Rename current {path_for_model_json} to {new_file_full_path}")
