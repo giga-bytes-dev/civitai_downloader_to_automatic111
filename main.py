@@ -161,7 +161,7 @@ def simple_download(url: str, fname: str, chunk_size=4096):
     resp = get(url, stream=True)
     total = int(resp.headers.get('content-length', 0))
     with open(fname, 'wb') as file, tqdm(
-        desc=fname,
+        desc=Path(fname).name,
         total=total,
         unit='iB',
         unit_scale=True,
