@@ -23,6 +23,7 @@ from tqdm import tqdm
 remove_non_english_with_dots = lambda s: re.sub(r'[^a-zA-Z\d\s\n\.]', ' ', s)
 remove_non_english_without_dots = lambda s: re.sub(r'[^a-zA-Z\d\s\n\.]', ' ', s)
 
+
 def remove_multiple_underscores(text):
     result = []
     prev_char = None
@@ -33,12 +34,14 @@ def remove_multiple_underscores(text):
         prev_char = char
     return "".join(result)
 
+
 def process_str_string(input: str, with_dots: bool) -> str:
     if with_dots:
         first_step = remove_non_english_with_dots(input).rstrip().lstrip().replace(" ", "_")
     else:
         first_step = remove_non_english_without_dots(input).rstrip().lstrip().replace(" ", "_")
     return remove_multiple_underscores(first_step)
+
 
 def creation_date(path_to_file):
     """
@@ -64,6 +67,7 @@ def compute_blake3(file_path: str) -> str:
         for chunk in iter(lambda: f.read(4096), b""):
             hash_blake3.update(chunk)
     return hash_blake3.hexdigest().upper()
+
 
 def check_blake3_hash_and_print(file_path: str, blake3_hash_from_civitai: str) -> bool:
     blake3_hash_str = compute_blake3(str(file_path))
@@ -311,7 +315,7 @@ def download_model(sd_webui_root_dir,
     type_of_model = model_data_json["type"]
     model_page_name = model_data_json['name']
     model_page_name_procesed = process_str_string(model_page_name, with_dots=False)
-    #print(f"model_page_name_procesed = {model_page_name_procesed}")
+    # print(f"model_page_name_procesed = {model_page_name_procesed}")
 
     print(f"@ model_page_name = {model_page_name}")
     print(f"@ model_page_name_procesed = {model_page_name_procesed}")
@@ -344,7 +348,7 @@ def download_model(sd_webui_root_dir,
         dump(model_data_json, f)
 
     model_versions_items = model_data_json["modelVersions"]
-    for index, model_version_json_data in enumerate(model_versions_items): #print(index, item)
+    for index, model_version_json_data in enumerate(model_versions_items):  # print(index, item)
         print(f"@model_version name raw = {model_version_json_data['name']}")
         model_version_name_processed = process_str_string(model_version_json_data['name'], with_dots=True)
         model_version_folder = path.join(folder_for_current_model, model_version_name_processed)
@@ -365,10 +369,10 @@ def download_model(sd_webui_root_dir,
             print(f"\tsizeKB raw: {current_file['sizeKB']}")
             print(f"\tsizeKB raw type: {type(current_file['sizeKB'])}")
             # on all ok
-            #print(f"\t\ttype: {current_file['type']}")
-            #"pickleScanResult": "Success",
-            #"pickleScanMessage": "No Pickle imports",
-            #"virusScanResult": "Success",
+            # print(f"\t\ttype: {current_file['type']}")
+            # "pickleScanResult": "Success",
+            # "pickleScanMessage": "No Pickle imports",
+            # "virusScanResult": "Success",
 
             # after upload one second ago.  No hash and no scan
             # "pickleScanResult": "Pending",
@@ -389,7 +393,6 @@ def download_model(sd_webui_root_dir,
                 print(Fore.RED + '\tNo hash in json from cilivai. Hash no calculated on servers of cilivai yet?')
                 print(Fore.RED + '\tHash check disabled now')
                 print(Style.RESET_ALL)
-
 
             if file_model_is_safe or disable_sec_checks:
                 if no_download:
@@ -424,7 +427,6 @@ def download_model(sd_webui_root_dir,
                 with open(path_to_current_json, 'r') as fi:
                     dict_current_json = json.load(fi)
                     all_names_and_hashes[current_file_name_without_ext] = dict_current_json["hash"]
-
 
             print(f"max_index_int_name = {max_index_int_name}")
 
