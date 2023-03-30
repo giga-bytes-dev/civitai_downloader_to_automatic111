@@ -2,5 +2,5 @@
 # this is tested on windows now
 
 ```
-py -3 main.py --sd-webui-root-dir "F:\stable-diffusion-webui" https://civitai.com/models/24679/reze-chainsaw-man --disable-sec-checks true
+py -3 main.py download-model-command --disable-sec-checks --sd-webui-root-dir "M:\download" https://civitai.com/models/1111/example_model
 ```

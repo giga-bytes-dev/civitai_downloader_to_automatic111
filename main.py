@@ -1,4 +1,4 @@
-import argparse
+import datetime as dt
 import json
 import math
 import os
@@ -6,12 +6,12 @@ import platform
 import re
 from json import dump
 from os import path
-from os.path import abspath, join
+from os.path import abspath
 from pathlib import Path
 from re import Match
 from typing import Optional, Dict
-import datetime as dt
 
+import click
 from blake3 import blake3
 from colorama import Fore, Style
 from requests import get
@@ -200,21 +200,36 @@ def find_exist_image_name_by_hash(all_names_and_hashes_dict: Dict[str, str], has
             return search_file_name
     return None
 
-def main():
-    parser = argparse.ArgumentParser(description='Download from civitai')
-    parser.add_argument('--sd-webui-root-dir', type=str, help='stable-diffusion-webui dir', default="sd-webui-root-dir")
-    parser.add_argument('--no-download', type=bool, help='no download', default=False)
-    parser.add_argument('--disable-sec-checks', type=bool, help='no download', default=False)
-    parser.add_argument('--remove-incompleted-files', action='store_true')
-    parser.add_argument('url', type=str)
-    args = parser.parse_args()
 
-    sd_webui_root_dir = abspath(args.sd_webui_root_dir)
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
+@click.option('--sd-webui-root-dir', type=str, required=True)
+@click.option('--no-download', is_flag=True)
+@click.option('--disable-sec-checks', is_flag=True)
+@click.option('--remove-incompleted-files', is_flag=True)
+@click.argument('url', type=str, required=True)
+def download_model_command(sd_webui_root_dir,
+                           no_download: bool,
+                           disable_sec_checks: bool,
+                           remove_incompleted_files: bool,
+                           url: str):
+    click.echo("Options:")
+    click.echo(f"--sd-webui-root-dir = {sd_webui_root_dir}")
+    click.echo(f"--no-download = {no_download}")
+    click.echo(f"--disable-sec-checks = {disable_sec_checks}")
+    click.echo(f"--remove-incompleted-files = {remove_incompleted_files}")
+    click.echo(f"url = {url}\n")
+
+    sd_webui_root_dir = abspath(sd_webui_root_dir)
     print(f"sd_webui_root_dir = {sd_webui_root_dir}")
 
-    print(f"args.url = {args.url}")
+    print(f"args.url = {url}")
 
-    civitai_url_match: Optional[Match] = re.fullmatch(CIVITAI_MODEL_REGEX_PATTERN, args.url)
+    civitai_url_match: Optional[Match] = re.fullmatch(CIVITAI_MODEL_REGEX_PATTERN, url)
     if civitai_url_match is None:
         print("not valid civitai model page url.exit!")
         exit(1)
@@ -312,15 +327,15 @@ def main():
                 print(Style.RESET_ALL)
 
 
-            if file_model_is_safe or args.disable_sec_checks:
-                if args.no_download:
+            if file_model_is_safe or disable_sec_checks:
+                if no_download:
                     print(f"simulate download(url={current_file['downloadUrl']}, "
                           f"download_model_data_entry_path={download_model_data_entry_path})")
                 else:
 
                     download_file(url=current_file['downloadUrl'],
                                   file_save_path_str_path=download_model_data_entry_path,
-                                  remove_incompleted_files=args.remove_incompleted_files,
+                                  remove_incompleted_files=remove_incompleted_files,
                                   file_size_kb_from_civitai=current_file['sizeKB'],
                                   blake3_hash_from_civitai=file_hash_blake3)
             else:
@@ -366,7 +381,7 @@ def main():
                 path_for_save_image = path.join(path_for_model_samples_folder, str(max_index_int_name) + ".jpg")
                 path_for_json = path.join(path_for_model_samples_folder, sample_json_data_name)
                 path_for_json_meta = path.join(path_for_model_samples_folder, str(max_index_int_name) + ".meta")
-                if args.no_download:
+                if no_download:
                     print(f"simulate download(url={image_json['url']}, path_for_save_image={path_for_save_image}))")
                 else:
                     simple_download(image_json['url'], path_for_save_image)
@@ -379,6 +394,5 @@ def main():
                     dump(image_json['meta'], f)
 
 
-
 if __name__ == '__main__':
-    main()
+    cli()
