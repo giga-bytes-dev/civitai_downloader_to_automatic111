@@ -209,6 +209,55 @@ def cli():
     pass
 
 
+CIVITAI_USER_REGEX_PATTERN = re.compile(r"^((http|https)://)civitai[.]com/user/(?P<user_name>\w+)$")
+
+
+@cli.command()
+@click.option('--sd-webui-root-dir', type=str, required=True)
+@click.option('--no-download', is_flag=True)
+@click.option('--disable-sec-checks', is_flag=True)
+@click.option('--remove-incompleted-files', is_flag=True)
+@click.argument('url', type=str, required=True)
+def download_models_for_user_command(sd_webui_root_dir: str,
+                             no_download: bool,
+                             disable_sec_checks: bool,
+                             remove_incompleted_files: bool,
+                             url: str):
+    download_models_for_user(sd_webui_root_dir=sd_webui_root_dir,
+                             no_download=no_download,
+                             disable_sec_checks=disable_sec_checks,
+                             remove_incompleted_files=remove_incompleted_files,
+                             url=url)
+def download_models_for_user(sd_webui_root_dir,
+                             no_download: bool,
+                             disable_sec_checks: bool,
+                             remove_incompleted_files: bool,
+                             url: str):
+    civitai_url_match: Optional[Match] = re.fullmatch(CIVITAI_USER_REGEX_PATTERN, url)
+    click.echo(f"url = {url}")
+    if civitai_url_match is None:
+        print("not valid civitai user page url.exit!")
+        exit(1)
+
+    user_name_str = civitai_url_match.group("user_name")
+    print(f"user_name_str = {user_name_str}")
+
+    next_page: Optional[str] = f"https://civitai.com/api/v1/models?username={user_name_str}"
+    while next_page is not None:
+        r = get(next_page)
+        if r.status_code != 200:
+            print("Get model info by civitai error! exit!")
+            exit(1)
+
+        for item in r.json()["items"]:
+            url_for_download = f"https://civitai.com/models/{item['id']}"
+            download_model(sd_webui_root_dir=sd_webui_root_dir,
+                                   no_download=no_download,
+                                   disable_sec_checks=disable_sec_checks,
+                                   remove_incompleted_files=remove_incompleted_files,
+                                   url=url_for_download)
+
+
 @cli.command()
 @click.option('--sd-webui-root-dir', type=str, required=True)
 @click.option('--no-download', is_flag=True)
@@ -216,6 +265,18 @@ def cli():
 @click.option('--remove-incompleted-files', is_flag=True)
 @click.argument('url', type=str, required=True)
 def download_model_command(sd_webui_root_dir,
+                           no_download: bool,
+                           disable_sec_checks: bool,
+                           remove_incompleted_files: bool,
+                           url: str):
+    download_model(sd_webui_root_dir=sd_webui_root_dir,
+                   no_download=no_download,
+                   disable_sec_checks=disable_sec_checks,
+                   remove_incompleted_files=remove_incompleted_files,
+                   url=url)
+
+
+def download_model(sd_webui_root_dir,
                            no_download: bool,
                            disable_sec_checks: bool,
                            remove_incompleted_files: bool,
