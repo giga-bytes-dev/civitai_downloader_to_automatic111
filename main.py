@@ -171,7 +171,9 @@ def simple_download(url: str, fname: str, chunk_size=4096):
             size = file.write(data)
             bar.update(size)
 
-CIVITAI_MODEL_REGEX_PATTERN = re.compile(r"^((http|https)://)civitai[.]com/models/(?P<model_id>\d+)/(.+)$")
+
+CIVITAI_MODEL_REGEX_PATTERN = re.compile(r"^((http|https)://)civitai[.]com/models/(?P<model_id>\d+)")
+
 
 # types of civitai resources
 # 'Checkpoint' -> 'models\Stable-diffusion'
@@ -229,7 +231,7 @@ def download_model_command(sd_webui_root_dir,
 
     print(f"args.url = {url}")
 
-    civitai_url_match: Optional[Match] = re.fullmatch(CIVITAI_MODEL_REGEX_PATTERN, url)
+    civitai_url_match: Optional[Match] = re.match(CIVITAI_MODEL_REGEX_PATTERN, url)
     if civitai_url_match is None:
         print("not valid civitai model page url.exit!")
         exit(1)
