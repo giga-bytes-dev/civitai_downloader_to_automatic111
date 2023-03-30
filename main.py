@@ -222,27 +222,32 @@ CIVITAI_USER_REGEX_PATTERN = re.compile(r"^((http|https)://)civitai[.]com/user/(
 @click.option('--no-download', is_flag=True)
 @click.option('--disable-sec-checks', is_flag=True)
 @click.option('--remove-incompleted-files', is_flag=True)
+@click.option('--model-type-filter', type=click.Choice(['NONE', 'LORA', 'Model'], case_sensitive=False), default="NONE")
 @click.argument('url', type=str, required=True)
 def download_models_for_user_command(sd_webui_root_dir: str,
-                             no_download: bool,
-                             disable_sec_checks: bool,
-                             remove_incompleted_files: bool,
-                             url: str):
+                                     no_download: bool,
+                                     disable_sec_checks: bool,
+                                     remove_incompleted_files: bool,
+                                     model_type_filter: str,
+                                     url: str):
     download_models_for_user(sd_webui_root_dir=sd_webui_root_dir,
                              no_download=no_download,
                              disable_sec_checks=disable_sec_checks,
                              remove_incompleted_files=remove_incompleted_files,
+                             model_type_filter=model_type_filter,
                              url=url)
 def download_models_for_user(sd_webui_root_dir,
                              no_download: bool,
                              disable_sec_checks: bool,
                              remove_incompleted_files: bool,
+                             model_type_filter: str,
                              url: str):
     civitai_url_match: Optional[Match] = re.fullmatch(CIVITAI_USER_REGEX_PATTERN, url)
     click.echo(f"url = {url}")
     if civitai_url_match is None:
         print("not valid civitai user page url.exit!")
         exit(1)
+
 
     user_name_str = civitai_url_match.group("user_name")
     print(f"user_name_str = {user_name_str}")
@@ -253,14 +258,27 @@ def download_models_for_user(sd_webui_root_dir,
         if r.status_code != 200:
             print("Get model info by civitai error! exit!")
             exit(1)
-
-        for item in r.json()["items"]:
+        data = r.json()
+        for item in data["items"]:
             url_for_download = f"https://civitai.com/models/{item['id']}"
+            click.echo(f"begin {url_for_download}")
+            if model_type_filter.upper() != "NONE":
+                click.echo(f"model_type_filter = {model_type_filter}")
+                if item["type"] != model_type_filter:
+                    click.echo(f"skip model. filter enabled to download {model_type_filter} only")
+                    continue
+
             download_model(sd_webui_root_dir=sd_webui_root_dir,
                                    no_download=no_download,
                                    disable_sec_checks=disable_sec_checks,
                                    remove_incompleted_files=remove_incompleted_files,
                                    url=url_for_download)
+
+        if "nextPage" in data["metadata"]:
+            next_page = data["metadata"]["nextPage"]
+            click.echo(f"next page = {next_page}")
+        else:
+            next_page = None
 
 
 @cli.command()
