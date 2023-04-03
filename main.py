@@ -199,6 +199,8 @@ def get_web_ui_folder_by_type(base_path: str, type_str: str) -> str:
         return path.join(base_path, "embeddings")
     elif type_str == "Hypernetwork":
         return path.join(base_path, "models", "hypernetworks")
+    elif type_str == "Other":
+        return path.join(base_path, "models", "Other")
     else:
         raise Exception("Not supported type yet?")
 
