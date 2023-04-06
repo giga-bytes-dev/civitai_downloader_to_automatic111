@@ -356,6 +356,20 @@ def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
         img_tag['src'] = "pics/" + uuid_image_name
     return str(soup)
 
+def file_rename_to_name_with_past_mask(file_path: str) -> Optional[str]:
+    file_path_Path = Path(file_path)
+    current_date_time = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
+
+    new_name_of_destination_file = dt.datetime.fromtimestamp(creation_date(file_path)).strftime(
+        "civitai_model_orig_was_%d_%m_%Y__%H_%M__%S_now_" + current_date_time) + ".json"
+    destination_file_path = path.join(file_path_Path.parent, new_name_of_destination_file)
+    try:
+        file_path_Path.rename(destination_file_path)
+        click.echo(f"Rename current {file_path} to {destination_file_path} ok")
+        return destination_file_path
+    except FileNotFoundError:
+        click.echo(f"Rename current {file_path} to {destination_file_path} fail")
+    return None
 
 def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
                                                  model_data_json: Any,
@@ -370,36 +384,16 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
     path_for_model_json = path.join(folder_for_current_model, CIVITAI_MODEL_DESC_NAME_HTML)
     print(f"path_for_model_original_json = {path_for_model_original_json}")
 
-    path_for_model_json_Path = Path(path_for_model_json)
-    path_for_model_original_json_Path = Path(path_for_model_original_json)
-
     write_desc_and_original_data: bool = True
 
-    if path_for_model_json_Path.is_file() or path_for_model_original_json_Path.is_file():
+    # TODO check, we need rename current exists json and write current?
+    # if no, then write_model_and_original_data = False
+    if True:
+        if Path(path_for_model_json).is_file():
+            file_rename_to_name_with_past_mask(path_for_model_json)
+        if Path(path_for_model_original_json).is_file():
+            file_rename_to_name_with_past_mask(path_for_model_original_json)
 
-        # TODO check, we need rename current exists json and write current?
-        # if no, then write_model_and_original_data = False
-
-        print(f"creation_date = {creation_date(path_for_model_json)}")
-        file_time = dt.datetime.fromtimestamp(creation_date(path_for_model_json))
-        current_date_time = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
-        new_name_of_current_file = file_time.strftime("civitai_model_desc_%d_%m_%Y__%H_%M_%S_now_" + current_date_time) + ".html"
-        new_name_of_current_orig_file = file_time.strftime(
-            "civitai_model_orig_was_%d_%m_%Y__%H_%M__%S_now_" + current_date_time) + ".json"
-        new_file_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_file)
-        new_file_orig_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_orig_file)
-        # TODO process rename errors? (FileNotFoundError exp)
-        try:
-            path_for_model_json_Path.rename(new_file_full_path)
-            click.echo(f"Rename current {path_for_model_json} to {new_file_full_path} ok")
-        except FileNotFoundError:
-            click.echo(f"Rename current {path_for_model_json} to {new_file_full_path} fail")
-
-        try:
-            path_for_model_original_json_Path.rename(new_file_orig_full_path)
-            click.echo(f"Rename current {path_for_model_original_json} to {new_file_orig_full_path} ok")
-        except FileNotFoundError:
-            click.echo(f"Rename current {path_for_model_original_json} to {new_file_orig_full_path} fail")
 
     if write_desc_and_original_data:
         with open(path_for_model_original_json, 'w') as f:
