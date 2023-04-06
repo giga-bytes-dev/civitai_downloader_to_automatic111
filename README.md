@@ -10,8 +10,18 @@ You can download some model
 
 ### this is tested on windows now
 
+Parameters:
+
+|                      |   |
+|----------------------|---|
+| --disable-sec-checks | ? |
+| --sd-webui-root-dir  |   |
 
 
+
+Example commands
 ```
 py -3 main.py download-model-command --disable-sec-checks --sd-webui-root-dir "M:\download" https://civitai.com/models/1111/example_model
+
+py -3 main.py download-models-for-user-command --sd-webui-root-dir "J:\download" --disable-sec-checks https://civitai.com/user/example_user
 ```
