@@ -9,14 +9,33 @@ from os import path
 from os.path import abspath
 from pathlib import Path
 from re import Match
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from datetime import datetime
 
 import click
+import cloudscraper as cloudscraper
+import requests
 from blake3 import blake3
+from bs4 import BeautifulSoup
 from colorama import Fore, Style
 from requests import get
 from tqdm import tqdm
+
+sess = requests.Session()
+
+sess.headers = {
+    'referer': 'imagecache.civitai.com',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
+}
+
+scraper = cloudscraper.create_scraper(
+    browser={
+        'browser': 'chrome',
+        'platform': 'windows',
+        'desktop': True
+    },
+    sess=sess
+)
 
 # some code from https://gist.github.com/tobiasraabe/58adee67de619ce621464c1a6511d7d9
 # resume download not supported on civitai
@@ -163,9 +182,14 @@ def download_file(url: str, file_save_path_str_path: str,
                 # TODO remove file??? or create invalid file mark (falename + .invalid)?
 
 
-def simple_download(url: str, fname: str, chunk_size=4096):
-    resp = get(url, stream=True)
+def simple_download(url: str, fname: str, chunk_size=4096, use_cloudscraper: bool = False):
+    if use_cloudscraper:
+        resp = scraper.get(url, stream=True)
+    else:
+        resp = get(url, stream=True)
+    print(f"resp status_code = {resp.status_code}")
     total = int(resp.headers.get('content-length', 0))
+
     with open(fname, 'wb') as file, tqdm(
             desc=Path(fname).name,
             total=total,
@@ -220,6 +244,7 @@ def cli():
 
 CIVITAI_USER_REGEX_PATTERN = re.compile(r"^((http|https)://)civitai[.]com/user/(?P<user_name>\w+)$")
 
+REGEX_CIVITAI_IMAGE_FROM_CACHE_PATTERN = re.compile(r"^((https)://)imagecache[.]civitai[.]com/(?P<unc1>\w+)/(?P<uuid_image1>\w+-\w+-\w+-\w+-\w+)/width=(?P<image_width>\d+)/(?P<uuid_image2>\w+-\w+-\w+-\w+-\w+)$")
 
 @cli.command()
 @click.option('--sd-webui-root-dir', type=str, required=True)
@@ -303,6 +328,84 @@ def download_model_command(sd_webui_root_dir,
                    url=url)
 
 
+def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
+    description_html = model_data_json['description']
+    soup = BeautifulSoup(description_html, 'html.parser')
+    for img_tag in soup.find_all('img'):
+        img_url = img_tag['src']
+        print(f"img_url = {img_url}")
+        # a45d3592-2ef0-4ec7-bba9-963f1a5d2900
+        # image_name = "?"
+        civitai_image_match: Optional[Match] = re.fullmatch(REGEX_CIVITAI_IMAGE_FROM_CACHE_PATTERN, img_url)
+        if civitai_image_match is None:
+            click.echo("Invalid cache url. go to next img")
+            continue
+
+        uuid_image_name = civitai_image_match.group("uuid_image2")
+        image_width = civitai_image_match.group("image_width")
+        path_for_pic_in_pics_folder = path.join(path_for_pics_folder, uuid_image_name)
+        img_url_with_width_zero = img_url.replace("width=" + image_width, 'width=0')
+        print(f"img_url_with_width_zero = {img_url_with_width_zero}")
+        if Path(path_for_pic_in_pics_folder).is_file():
+            click.echo(f"File {uuid_image_name} exists yet")
+        else:
+            simple_download(img_url_with_width_zero, str(path_for_pic_in_pics_folder), use_cloudscraper=True)
+        img_tag['src'] = "pics/" + uuid_image_name
+    return str(soup)
+
+
+def download_or_update_json_model_info_with_pics(folder_for_current_model: str, model_data_json: Any):
+    CIVITAI_MODEL_ORIGINAL_NAME_JSON = "civitai_model.original.json"
+    CIVITAI_MODEL_DESC_NAME_HTML = "civitai_model_desc.html"
+
+    path_for_pics_folder = path.join(folder_for_current_model, "pics")
+    Path(path_for_pics_folder).mkdir(parents=True, exist_ok=True)
+
+    path_for_model_original_json = path.join(folder_for_current_model, CIVITAI_MODEL_ORIGINAL_NAME_JSON)
+    path_for_model_json = path.join(folder_for_current_model, CIVITAI_MODEL_DESC_NAME_HTML)
+    print(f"path_for_model_original_json = {path_for_model_original_json}")
+
+    path_for_model_json_Path = Path(path_for_model_json)
+    path_for_model_original_json_Path = Path(path_for_model_original_json)
+
+    write_model_and_original_data: bool = True
+
+    if path_for_model_json_Path.is_file() or path_for_model_original_json_Path.is_file():
+
+        # TODO check, we need rename current exists json and write current?
+        # if no, then write_model_and_original_data = False
+
+        print(f"creation_date = {creation_date(path_for_model_json)}")
+        file_time = dt.datetime.fromtimestamp(creation_date(path_for_model_json))
+        #print(file_time.strftime("%d_%m_%Y__%H_%M"))
+        current_date_time = datetime.now().strftime("%d_%m_%Y__%H_%M")
+        new_name_of_current_file = file_time.strftime("civitai_model_desc_%d_%m_%Y__%H_%M_now_" + current_date_time) + ".html"
+        new_name_of_current_orig_file = file_time.strftime(
+            "civitai_model_orig_was_%d_%m_%Y__%H_%M_now_" + current_date_time) + ".json"
+        new_file_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_file)
+        new_file_orig_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_orig_file)
+        # TODO process rename errors? (FileNotFoundError exp)
+        try:
+            path_for_model_json_Path.rename(new_file_full_path)
+            click.echo(f"Rename current {path_for_model_json} to {new_file_full_path} ok")
+        except FileNotFoundError:
+            click.echo(f"Rename current {path_for_model_json} to {new_file_full_path} fail")
+
+        try:
+            path_for_model_original_json_Path.rename(new_file_orig_full_path)
+            click.echo(f"Rename current {path_for_model_original_json} to {new_file_orig_full_path} ok")
+        except FileNotFoundError:
+            click.echo(f"Rename current {path_for_model_original_json} to {new_file_orig_full_path} fail")
+
+    model_data_json_with_fixed_paths = download_pics(model_data_json, path_for_pics_folder)
+
+    if write_model_and_original_data:
+        with open(path_for_model_original_json, 'w') as f:
+            dump(model_data_json, f)
+
+        with open(path_for_model_json, 'w') as f:
+            dump(model_data_json_with_fixed_paths, f)
+
 def download_model(sd_webui_root_dir,
                            no_download: bool,
                            disable_sec_checks: bool,
@@ -353,23 +456,9 @@ def download_model(sd_webui_root_dir,
     Path(folder_for_current_model).mkdir(parents=True, exist_ok=True)
     print(f"Create folder {folder_for_current_model} or use exists ok")
 
-    path_for_model_json = path.join(folder_for_current_model, "civitai_model.json")
-    print(f"path_for_model_json = {path_for_model_json}")
+    download_or_update_json_model_info_with_pics(folder_for_current_model=folder_for_current_model,
+                                                 model_data_json=model_data_json)
 
-    path_for_model_json_Path = Path(path_for_model_json)
-    if path_for_model_json_Path.is_file():
-        print(f"path_for_json = {path_for_model_json}")
-        print(f"creation_date = {creation_date(path_for_model_json)}")
-        file_time = dt.datetime.fromtimestamp(creation_date(path_for_model_json))
-        #print(file_time.strftime("%d_%m_%Y__%H_%M"))
-        current_date_time = datetime.now().strftime("%d_%m_%Y__%H_%M")
-        new_name_of_current_file = file_time.strftime("civitai_model_was_%d_%m_%Y__%H_%M_now_" + current_date_time) + ".json"
-        new_file_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_file)
-        path_for_model_json_Path.rename(new_file_full_path)
-        print(f"Rename current {path_for_model_json} to {new_file_full_path}")
-
-    with open(path_for_model_json, 'w') as f:
-        dump(model_data_json, f)
 
     model_versions_items = model_data_json["modelVersions"]
     for index, model_version_json_data in enumerate(model_versions_items):  # print(index, item)
