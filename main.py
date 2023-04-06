@@ -382,11 +382,10 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
 
         print(f"creation_date = {creation_date(path_for_model_json)}")
         file_time = dt.datetime.fromtimestamp(creation_date(path_for_model_json))
-        #print(file_time.strftime("%d_%m_%Y__%H_%M"))
-        current_date_time = datetime.now().strftime("%d_%m_%Y__%H_%M")
-        new_name_of_current_file = file_time.strftime("civitai_model_desc_%d_%m_%Y__%H_%M_now_" + current_date_time) + ".html"
+        current_date_time = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
+        new_name_of_current_file = file_time.strftime("civitai_model_desc_%d_%m_%Y__%H_%M_%S_now_" + current_date_time) + ".html"
         new_name_of_current_orig_file = file_time.strftime(
-            "civitai_model_orig_was_%d_%m_%Y__%H_%M_now_" + current_date_time) + ".json"
+            "civitai_model_orig_was_%d_%m_%Y__%H_%M__%S_now_" + current_date_time) + ".json"
         new_file_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_file)
         new_file_orig_full_path = path.join(path_for_model_json_Path.parent, new_name_of_current_orig_file)
         # TODO process rename errors? (FileNotFoundError exp)
