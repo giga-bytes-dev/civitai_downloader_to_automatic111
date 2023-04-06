@@ -187,7 +187,6 @@ def simple_download(url: str, fname: str, chunk_size=4096, use_cloudscraper: boo
         resp = scraper.get(url, stream=True)
     else:
         resp = get(url, stream=True)
-    print(f"resp status_code = {resp.status_code}")
     total = int(resp.headers.get('content-length', 0))
 
     with open(fname, 'wb') as file, tqdm(
@@ -252,25 +251,29 @@ REGEX_CIVITAI_IMAGE_FROM_CACHE_PATTERN = re.compile(r"^((https)://)imagecache[.]
 @click.option('--disable-sec-checks', is_flag=True)
 @click.option('--remove-incompleted-files', is_flag=True)
 @click.option('--model-type-filter', type=click.Choice(['NONE', 'LORA', 'Model'], case_sensitive=False), default="NONE")
+@click.option('--download-pics-from-desc/--no-download-pics-from_desc', default=True)
 @click.argument('url', type=str, required=True)
 def download_models_for_user_command(sd_webui_root_dir: str,
                                      no_download: bool,
                                      disable_sec_checks: bool,
                                      remove_incompleted_files: bool,
                                      model_type_filter: str,
-                                     url: str):
+                                     url: str,
+                                     download_pics_from_desc: bool):
     download_models_for_user(sd_webui_root_dir=sd_webui_root_dir,
                              no_download=no_download,
                              disable_sec_checks=disable_sec_checks,
                              remove_incompleted_files=remove_incompleted_files,
                              model_type_filter=model_type_filter,
-                             url=url)
+                             url=url,
+                             download_pics_from_desc=download_pics_from_desc)
 def download_models_for_user(sd_webui_root_dir,
                              no_download: bool,
                              disable_sec_checks: bool,
                              remove_incompleted_files: bool,
                              model_type_filter: str,
-                             url: str):
+                             url: str,
+                             download_pics_from_desc: bool):
     civitai_url_match: Optional[Match] = re.fullmatch(CIVITAI_USER_REGEX_PATTERN, url)
     click.echo(f"url = {url}")
     if civitai_url_match is None:
@@ -301,7 +304,8 @@ def download_models_for_user(sd_webui_root_dir,
                                    no_download=no_download,
                                    disable_sec_checks=disable_sec_checks,
                                    remove_incompleted_files=remove_incompleted_files,
-                                   url=url_for_download)
+                                   url=url_for_download,
+                                   download_pics_from_desc=download_pics_from_desc)
 
         if "nextPage" in data["metadata"]:
             next_page = data["metadata"]["nextPage"]
@@ -315,17 +319,20 @@ def download_models_for_user(sd_webui_root_dir,
 @click.option('--no-download', is_flag=True)
 @click.option('--disable-sec-checks', is_flag=True)
 @click.option('--remove-incompleted-files', is_flag=True)
+@click.option('--download-pics-from-desc/--no-download-pics-from_desc', default=True)
 @click.argument('url', type=str, required=True)
 def download_model_command(sd_webui_root_dir,
                            no_download: bool,
                            disable_sec_checks: bool,
                            remove_incompleted_files: bool,
-                           url: str):
+                           url: str,
+                           download_pics_from_desc: bool):
     download_model(sd_webui_root_dir=sd_webui_root_dir,
                    no_download=no_download,
                    disable_sec_checks=disable_sec_checks,
                    remove_incompleted_files=remove_incompleted_files,
-                   url=url)
+                   url=url,
+                   download_pics_from_desc=download_pics_from_desc)
 
 
 def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
@@ -333,9 +340,6 @@ def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
     soup = BeautifulSoup(description_html, 'html.parser')
     for img_tag in soup.find_all('img'):
         img_url = img_tag['src']
-        print(f"img_url = {img_url}")
-        # a45d3592-2ef0-4ec7-bba9-963f1a5d2900
-        # image_name = "?"
         civitai_image_match: Optional[Match] = re.fullmatch(REGEX_CIVITAI_IMAGE_FROM_CACHE_PATTERN, img_url)
         if civitai_image_match is None:
             click.echo("Invalid cache url. go to next img")
@@ -345,7 +349,6 @@ def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
         image_width = civitai_image_match.group("image_width")
         path_for_pic_in_pics_folder = path.join(path_for_pics_folder, uuid_image_name)
         img_url_with_width_zero = img_url.replace("width=" + image_width, 'width=0')
-        print(f"img_url_with_width_zero = {img_url_with_width_zero}")
         if Path(path_for_pic_in_pics_folder).is_file():
             click.echo(f"File {uuid_image_name} exists yet")
         else:
@@ -354,7 +357,9 @@ def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
     return str(soup)
 
 
-def download_or_update_json_model_info_with_pics(folder_for_current_model: str, model_data_json: Any):
+def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
+                                                 model_data_json: Any,
+                                                 download_pics_from_desc: bool):
     CIVITAI_MODEL_ORIGINAL_NAME_JSON = "civitai_model.original.json"
     CIVITAI_MODEL_DESC_NAME_HTML = "civitai_model_desc.html"
 
@@ -368,7 +373,7 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str, 
     path_for_model_json_Path = Path(path_for_model_json)
     path_for_model_original_json_Path = Path(path_for_model_original_json)
 
-    write_model_and_original_data: bool = True
+    write_desc_and_original_data: bool = True
 
     if path_for_model_json_Path.is_file() or path_for_model_original_json_Path.is_file():
 
@@ -397,20 +402,21 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str, 
         except FileNotFoundError:
             click.echo(f"Rename current {path_for_model_original_json} to {new_file_orig_full_path} fail")
 
-    model_data_json_with_fixed_paths = download_pics(model_data_json, path_for_pics_folder)
-
-    if write_model_and_original_data:
+    if write_desc_and_original_data:
         with open(path_for_model_original_json, 'w') as f:
             dump(model_data_json, f)
+        if download_pics_from_desc:
+            model_data_json_with_fixed_paths = download_pics(model_data_json, path_for_pics_folder)
+            with open(path_for_model_json, 'w') as f:
+                dump(model_data_json_with_fixed_paths, f)
 
-        with open(path_for_model_json, 'w') as f:
-            dump(model_data_json_with_fixed_paths, f)
 
 def download_model(sd_webui_root_dir,
                            no_download: bool,
                            disable_sec_checks: bool,
                            remove_incompleted_files: bool,
-                           url: str):
+                           url: str,
+                           download_pics_from_desc: bool):
     click.echo("Options:")
     click.echo(f"--sd-webui-root-dir = {sd_webui_root_dir}")
     click.echo(f"--no-download = {no_download}")
@@ -457,7 +463,8 @@ def download_model(sd_webui_root_dir,
     print(f"Create folder {folder_for_current_model} or use exists ok")
 
     download_or_update_json_model_info_with_pics(folder_for_current_model=folder_for_current_model,
-                                                 model_data_json=model_data_json)
+                                                 model_data_json=model_data_json,
+                                                 download_pics_from_desc=download_pics_from_desc)
 
 
     model_versions_items = model_data_json["modelVersions"]
