@@ -356,12 +356,12 @@ def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
         img_tag['src'] = "pics/" + uuid_image_name
     return str(soup)
 
-def file_rename_to_name_with_past_mask(file_path: str) -> Optional[str]:
+def file_rename_to_name_with_past_mask(file_path: str, dest_begin_file_name: str) -> Optional[str]:
     file_path_Path = Path(file_path)
     current_date_time = datetime.now().strftime("%d_%m_%Y__%H_%M_%S")
 
     new_name_of_destination_file = dt.datetime.fromtimestamp(creation_date(file_path)).strftime(
-        "civitai_model_orig_was_%d_%m_%Y__%H_%M__%S_now_" + current_date_time) + ".json"
+        dest_begin_file_name + "_%d_%m_%Y__%H_%M__%S_now_" + current_date_time) + ".json"
     destination_file_path = path.join(file_path_Path.parent, new_name_of_destination_file)
     try:
         file_path_Path.rename(destination_file_path)
@@ -381,7 +381,7 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
     Path(path_for_pics_folder).mkdir(parents=True, exist_ok=True)
 
     path_for_model_original_json = path.join(folder_for_current_model, CIVITAI_MODEL_ORIGINAL_NAME_JSON)
-    path_for_model_json = path.join(folder_for_current_model, CIVITAI_MODEL_DESC_NAME_HTML)
+    path_for_model_desc_json = path.join(folder_for_current_model, CIVITAI_MODEL_DESC_NAME_HTML)
     print(f"path_for_model_original_json = {path_for_model_original_json}")
 
     write_desc_and_original_data: bool = True
@@ -389,10 +389,10 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
     # TODO check, we need rename current exists json and write current?
     # if no, then write_model_and_original_data = False
     if True:
-        if Path(path_for_model_json).is_file():
-            file_rename_to_name_with_past_mask(path_for_model_json)
+        if Path(path_for_model_desc_json).is_file():
+            file_rename_to_name_with_past_mask(path_for_model_desc_json, "civitai_model_desc")
         if Path(path_for_model_original_json).is_file():
-            file_rename_to_name_with_past_mask(path_for_model_original_json)
+            file_rename_to_name_with_past_mask(path_for_model_original_json, "civitai_model_orig")
 
 
     if write_desc_and_original_data:
@@ -400,7 +400,7 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
             dump(model_data_json, f)
         if download_pics_from_desc:
             model_data_json_with_fixed_paths = download_pics(model_data_json, path_for_pics_folder)
-            with open(path_for_model_json, 'w') as f:
+            with open(path_for_model_desc_json, 'w') as f:
                 dump(model_data_json_with_fixed_paths, f)
 
 
