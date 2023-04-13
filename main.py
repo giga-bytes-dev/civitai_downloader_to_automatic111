@@ -103,6 +103,7 @@ def check_blake3_hash_and_print(file_path: str, blake3_hash_from_civitai: str) -
 
 def download_file(url: str, file_save_path_str_path: str,
                   remove_incompleted_files: bool,
+                  no_check_hash_for_exist: bool,
                   file_size_kb_from_civitai: Optional[float] = None,  # 6207.875
                   blake3_hash_from_civitai: Optional[str] = None) -> None:
     file_save_path = Path(file_save_path_str_path)
@@ -158,8 +159,7 @@ def download_file(url: str, file_save_path_str_path: str,
                     # TODO remove file??? or create invalid file mark (filename + .invalid)?
         else:
             print(f'File {url} to {file_save_path_str_path} is complete. Skip download.')
-            check_yet_exists_file = True
-            if blake3_hash_from_civitai is not None and check_yet_exists_file:
+            if blake3_hash_from_civitai is not None and not no_check_hash_for_exist:
                 if check_blake3_hash_and_print(file_save_path_str_path, blake3_hash_from_civitai):
                     print(Fore.GREEN + 'check exists file hash checked ok.')
                     print(Style.RESET_ALL)
@@ -202,6 +202,9 @@ def simple_download(url: str, fname: str, chunk_size=4096, use_cloudscraper: boo
 
 
 CIVITAI_MODEL_REGEX_PATTERN = re.compile(r"^((http|https)://)civitai[.]com/models/(?P<model_id>\d+)")
+
+class CivitaiDownloadModelError(Exception):
+    pass
 
 
 # types of civitai resources
@@ -250,8 +253,10 @@ REGEX_CIVITAI_IMAGE_FROM_CACHE_PATTERN = re.compile(r"^((https)://)imagecache[.]
 @click.option('--no-download', is_flag=True)
 @click.option('--disable-sec-checks', is_flag=True)
 @click.option('--remove-incompleted-files', is_flag=True)
+@click.option('--no-check-hash-for-exist', is_flag=True)
 @click.option('--model-type-filter', type=click.Choice(['NONE', 'LORA', 'Model'], case_sensitive=False), default="NONE")
 @click.option('--download-pics-from-desc/--no-download-pics-from_desc', default=True)
+@click.option('--write-json-and-desc_when_not_exists_only/--no-write-json-and-desc-when-not-exists-only', default=False)
 @click.argument('url', type=str, required=True)
 def download_models_for_user_command(sd_webui_root_dir: str,
                                      no_download: bool,
@@ -259,21 +264,27 @@ def download_models_for_user_command(sd_webui_root_dir: str,
                                      remove_incompleted_files: bool,
                                      model_type_filter: str,
                                      url: str,
-                                     download_pics_from_desc: bool):
+                                     no_check_hash_for_exist: bool,
+                                     download_pics_from_desc: bool,
+                                     write_json_and_desc_when_not_exists_only: bool):
     download_models_for_user(sd_webui_root_dir=sd_webui_root_dir,
                              no_download=no_download,
                              disable_sec_checks=disable_sec_checks,
                              remove_incompleted_files=remove_incompleted_files,
                              model_type_filter=model_type_filter,
+                             no_check_hash_for_exist=no_check_hash_for_exist,
                              url=url,
-                             download_pics_from_desc=download_pics_from_desc)
+                             download_pics_from_desc=download_pics_from_desc,
+                             write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only)
 def download_models_for_user(sd_webui_root_dir,
                              no_download: bool,
                              disable_sec_checks: bool,
                              remove_incompleted_files: bool,
                              model_type_filter: str,
+                             no_check_hash_for_exist: bool,
                              url: str,
-                             download_pics_from_desc: bool):
+                             download_pics_from_desc: bool,
+                             write_json_and_desc_when_not_exists_only: bool):
     civitai_url_match: Optional[Match] = re.fullmatch(CIVITAI_USER_REGEX_PATTERN, url)
     click.echo(f"url = {url}")
     if civitai_url_match is None:
@@ -288,8 +299,8 @@ def download_models_for_user(sd_webui_root_dir,
     while next_page is not None:
         r = get(next_page)
         if r.status_code != 200:
-            print("Get model info by civitai error! exit!")
-            exit(1)
+            message_error = "Get model info by civitai error!"
+            raise CivitaiDownloadModelError(message_error)
         data = r.json()
         for item in data["items"]:
             url_for_download = f"https://civitai.com/models/{item['id']}"
@@ -299,13 +310,17 @@ def download_models_for_user(sd_webui_root_dir,
                 if item["type"] != model_type_filter:
                     click.echo(f"skip model. filter enabled to download {model_type_filter} only")
                     continue
-
-            download_model(sd_webui_root_dir=sd_webui_root_dir,
-                                   no_download=no_download,
-                                   disable_sec_checks=disable_sec_checks,
-                                   remove_incompleted_files=remove_incompleted_files,
-                                   url=url_for_download,
-                                   download_pics_from_desc=download_pics_from_desc)
+            try:
+                download_model(sd_webui_root_dir=sd_webui_root_dir,
+                               no_download=no_download,
+                               disable_sec_checks=disable_sec_checks,
+                               remove_incompleted_files=remove_incompleted_files,
+                               no_check_hash_for_exist=no_check_hash_for_exist,
+                               url=url_for_download,
+                               download_pics_from_desc=download_pics_from_desc,
+                               write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only)
+            except CivitaiDownloadModelError as e:
+                click.echo(e)
 
         if "nextPage" in data["metadata"]:
             next_page = data["metadata"]["nextPage"]
@@ -318,25 +333,33 @@ def download_models_for_user(sd_webui_root_dir,
 @click.option('--sd-webui-root-dir', type=str, required=True)
 @click.option('--no-download', is_flag=True)
 @click.option('--disable-sec-checks', is_flag=True)
+@click.option('--no-check-hash-for-exist', is_flag=True)
 @click.option('--remove-incompleted-files', is_flag=True)
 @click.option('--download-pics-from-desc/--no-download-pics-from_desc', default=True)
+@click.option('--write-json-and-desc_when_not_exists_only/--no-write-json-and-desc-when-not-exists-only', default=False)
 @click.argument('url', type=str, required=True)
 def download_model_command(sd_webui_root_dir,
                            no_download: bool,
                            disable_sec_checks: bool,
+                           no_check_hash_for_exist: bool,
                            remove_incompleted_files: bool,
                            url: str,
-                           download_pics_from_desc: bool):
+                           download_pics_from_desc: bool,
+                           write_json_and_desc_when_not_exists_only: bool):
     download_model(sd_webui_root_dir=sd_webui_root_dir,
                    no_download=no_download,
                    disable_sec_checks=disable_sec_checks,
+                   no_check_hash_for_exist=no_check_hash_for_exist,
                    remove_incompleted_files=remove_incompleted_files,
                    url=url,
-                   download_pics_from_desc=download_pics_from_desc)
+                   download_pics_from_desc=download_pics_from_desc,
+                   write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only)
 
 
 def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
     description_html = model_data_json['description']
+    if description_html is None:
+        return ""
     soup = BeautifulSoup(description_html, 'html.parser')
     for img_tag in soup.find_all('img'):
         img_url = img_tag['src']
@@ -373,7 +396,8 @@ def file_rename_to_name_with_past_mask(file_path: str, dest_begin_file_name: str
 
 def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
                                                  model_data_json: Any,
-                                                 download_pics_from_desc: bool):
+                                                 download_pics_from_desc: bool,
+                                                 write_json_and_desc_when_not_exists_only: bool) -> None:
     CIVITAI_MODEL_ORIGINAL_NAME_JSON = "civitai_model.original.json"
     CIVITAI_MODEL_DESC_NAME_HTML = "civitai_model_desc.html"
 
@@ -384,7 +408,10 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
     path_for_model_desc_json = path.join(folder_for_current_model, CIVITAI_MODEL_DESC_NAME_HTML)
     print(f"path_for_model_original_json = {path_for_model_original_json}")
 
-    write_desc_and_original_data: bool = True
+    if write_json_and_desc_when_not_exists_only:
+        if Path(path_for_model_original_json).is_file():
+            click.echo(f"Enabled write_json_and_desc_when_not_exists_only option. Detected exists {CIVITAI_MODEL_ORIGINAL_NAME_JSON} file. skip desc and pics rename and download")
+            return
 
     # TODO check, we need rename current exists json and write current?
     # if no, then write_model_and_original_data = False
@@ -394,22 +421,22 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
         if Path(path_for_model_original_json).is_file():
             file_rename_to_name_with_past_mask(path_for_model_original_json, "civitai_model_orig")
 
-
-    if write_desc_and_original_data:
-        with open(path_for_model_original_json, 'w') as f:
-            dump(model_data_json, f)
-        if download_pics_from_desc:
-            model_data_json_with_fixed_paths = download_pics(model_data_json, path_for_pics_folder)
-            with open(path_for_model_desc_json, 'w') as f:
-                dump(model_data_json_with_fixed_paths, f)
+    with open(path_for_model_original_json, 'w') as f:
+        dump(model_data_json, f)
+    if download_pics_from_desc:
+        model_data_json_with_fixed_paths = download_pics(model_data_json, path_for_pics_folder)
+        with open(path_for_model_desc_json, 'w') as f:
+            dump(model_data_json_with_fixed_paths, f)
 
 
 def download_model(sd_webui_root_dir,
                            no_download: bool,
                            disable_sec_checks: bool,
                            remove_incompleted_files: bool,
+                           no_check_hash_for_exist: bool,
                            url: str,
-                           download_pics_from_desc: bool):
+                           download_pics_from_desc: bool,
+                           write_json_and_desc_when_not_exists_only: bool):
     click.echo("Options:")
     click.echo(f"--sd-webui-root-dir = {sd_webui_root_dir}")
     click.echo(f"--no-download = {no_download}")
@@ -432,8 +459,9 @@ def download_model(sd_webui_root_dir,
 
     r = get(f"https://civitai.com/api/v1/models/{model_id_str}")
     if r.status_code != 200:
-        print("Get model info by civitai error! exit!")
-        exit(1)
+        message_error = "Get model info by civitai error!"
+        print(message_error)
+        raise CivitaiDownloadModelError(message_error)
 
     model_data_json = r.json()
 
@@ -457,7 +485,8 @@ def download_model(sd_webui_root_dir,
 
     download_or_update_json_model_info_with_pics(folder_for_current_model=folder_for_current_model,
                                                  model_data_json=model_data_json,
-                                                 download_pics_from_desc=download_pics_from_desc)
+                                                 download_pics_from_desc=download_pics_from_desc,
+                                                 write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only)
 
 
     model_versions_items = model_data_json["modelVersions"]
@@ -498,6 +527,7 @@ def download_model(sd_webui_root_dir,
             file_model_is_safe = False
             if current_file['pickleScanResult'] == "Success" and current_file['virusScanResult'] == "Success":
                 file_model_is_safe = True
+
             file_hash_blake3 = None
 
             try:
@@ -514,6 +544,7 @@ def download_model(sd_webui_root_dir,
                 else:
 
                     download_file(url=current_file['downloadUrl'],
+                                  no_check_hash_for_exist=no_check_hash_for_exist,
                                   file_save_path_str_path=download_model_data_entry_path,
                                   remove_incompleted_files=remove_incompleted_files,
                                   file_size_kb_from_civitai=current_file['sizeKB'],
