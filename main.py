@@ -9,7 +9,7 @@ from os import path
 from os.path import abspath
 from pathlib import Path
 from re import Match
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 import click
@@ -253,6 +253,7 @@ REGEX_CIVITAI_IMAGE_FROM_CACHE_PATTERN = re.compile(r"^((https)://)imagecache[.]
 @click.option('--no-download', is_flag=True)
 @click.option('--disable-sec-checks', is_flag=True)
 @click.option('--remove-incompleted-files', is_flag=True)
+@click.option('--ignore-ckpt', is_flag=True, default=False)
 @click.option('--no-check-hash-for-exist', is_flag=True)
 @click.option('--model-type-filter', type=click.Choice(['NONE', 'LORA', 'Model'], case_sensitive=False), default="NONE")
 @click.option('--download-pics-from-desc/--no-download-pics-from_desc', default=True)
@@ -266,6 +267,7 @@ def download_models_for_user_command(sd_webui_root_dir: str,
                                      url: str,
                                      no_check_hash_for_exist: bool,
                                      download_pics_from_desc: bool,
+                                     ignore_ckpt: bool,
                                      write_json_and_desc_when_not_exists_only: bool):
     download_models_for_user(sd_webui_root_dir=sd_webui_root_dir,
                              no_download=no_download,
@@ -275,7 +277,8 @@ def download_models_for_user_command(sd_webui_root_dir: str,
                              no_check_hash_for_exist=no_check_hash_for_exist,
                              url=url,
                              download_pics_from_desc=download_pics_from_desc,
-                             write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only)
+                             write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only,
+                             ignore_ckpt=ignore_ckpt)
 def download_models_for_user(sd_webui_root_dir,
                              no_download: bool,
                              disable_sec_checks: bool,
@@ -284,9 +287,13 @@ def download_models_for_user(sd_webui_root_dir,
                              no_check_hash_for_exist: bool,
                              url: str,
                              download_pics_from_desc: bool,
-                             write_json_and_desc_when_not_exists_only: bool):
+                             write_json_and_desc_when_not_exists_only: bool,
+                             ignore_ckpt: bool):
     civitai_url_match: Optional[Match] = re.fullmatch(CIVITAI_USER_REGEX_PATTERN, url)
     click.echo(f"url = {url}")
+    skip_download_file_ext_list = []
+    if ignore_ckpt:
+        skip_download_file_ext_list.append("ckpt")
     if civitai_url_match is None:
         print("not valid civitai user page url.exit!")
         exit(1)
@@ -318,7 +325,8 @@ def download_models_for_user(sd_webui_root_dir,
                                no_check_hash_for_exist=no_check_hash_for_exist,
                                url=url_for_download,
                                download_pics_from_desc=download_pics_from_desc,
-                               write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only)
+                               write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only,
+                               skip_download_file_ext_list=skip_download_file_ext_list)
             except CivitaiDownloadModelError as e:
                 click.echo(e)
 
@@ -335,6 +343,7 @@ def download_models_for_user(sd_webui_root_dir,
 @click.option('--disable-sec-checks', is_flag=True)
 @click.option('--no-check-hash-for-exist', is_flag=True)
 @click.option('--remove-incompleted-files', is_flag=True)
+@click.option('--ignore-ckpt', is_flag=True, default=False)
 @click.option('--download-pics-from-desc/--no-download-pics-from_desc', default=True)
 @click.option('--write-json-and-desc_when_not_exists_only/--no-write-json-and-desc-when-not-exists-only', default=False)
 @click.argument('url', type=str, required=True)
@@ -344,8 +353,13 @@ def download_model_command(sd_webui_root_dir,
                            no_check_hash_for_exist: bool,
                            remove_incompleted_files: bool,
                            url: str,
+                           ignore_ckpt: bool,
                            download_pics_from_desc: bool,
                            write_json_and_desc_when_not_exists_only: bool):
+    skip_download_file_ext_list = []
+    if ignore_ckpt:
+        skip_download_file_ext_list.append("ckpt")
+
     download_model(sd_webui_root_dir=sd_webui_root_dir,
                    no_download=no_download,
                    disable_sec_checks=disable_sec_checks,
@@ -353,7 +367,8 @@ def download_model_command(sd_webui_root_dir,
                    remove_incompleted_files=remove_incompleted_files,
                    url=url,
                    download_pics_from_desc=download_pics_from_desc,
-                   write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only)
+                   write_json_and_desc_when_not_exists_only=write_json_and_desc_when_not_exists_only,
+                   skip_download_file_ext_list=skip_download_file_ext_list)
 
 
 def download_pics(model_data_json: Any, path_for_pics_folder) -> str:
@@ -429,6 +444,14 @@ def download_or_update_json_model_info_with_pics(folder_for_current_model: str,
             dump(model_data_json_with_fixed_paths, f)
 
 
+# realisticVisionV20_v20.ckpt
+def skip_file_name_ext_by_skip_list(skip_download_file_exts: List[str], file_name_with_ext: str) -> bool:
+    for skip_download_file_ext in skip_download_file_exts:
+        if file_name_with_ext.endswith(f".{skip_download_file_ext}"):
+            return True
+    return False
+
+
 def download_model(sd_webui_root_dir,
                            no_download: bool,
                            disable_sec_checks: bool,
@@ -436,7 +459,8 @@ def download_model(sd_webui_root_dir,
                            no_check_hash_for_exist: bool,
                            url: str,
                            download_pics_from_desc: bool,
-                           write_json_and_desc_when_not_exists_only: bool):
+                           write_json_and_desc_when_not_exists_only: bool,
+                           skip_download_file_ext_list: List[str]):
     click.echo("Options:")
     click.echo(f"--sd-webui-root-dir = {sd_webui_root_dir}")
     click.echo(f"--no-download = {no_download}")
@@ -537,12 +561,14 @@ def download_model(sd_webui_root_dir,
                 print(Fore.RED + '\tHash check disabled now')
                 print(Style.RESET_ALL)
 
+            # skip_download_file_ext
             if file_model_is_safe or disable_sec_checks:
                 if no_download:
                     print(f"simulate download(url={current_file['downloadUrl']}, "
                           f"download_model_data_entry_path={download_model_data_entry_path})")
+                elif skip_file_name_ext_by_skip_list(skip_download_file_ext_list, current_file['name']):
+                    print(f"skip download by skip_list")
                 else:
-
                     download_file(url=current_file['downloadUrl'],
                                   no_check_hash_for_exist=no_check_hash_for_exist,
                                   file_save_path_str_path=download_model_data_entry_path,
