@@ -124,8 +124,8 @@ def download_file(url: str, file_save_path_str_path: str,
                 print(Style.RESET_ALL)
                 return
 
-            print(Fore.YELLOW + f'File {url} to {file_save_path_str_path} is incomplete. '
-                                f'Start download with rename incomplete file.')
+            print(Fore.YELLOW + f'File {url} to {file_save_path_str_path} is incomplete or damaged '
+                                f'Start download with rename current file to file with inc extension.')
             print(Style.RESET_ALL)
 
             inc_file_save_str_path = path.join(file_save_path.parent, file_save_path.name + ".inc")
