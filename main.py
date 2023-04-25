@@ -4,7 +4,7 @@ import math
 import os
 import platform
 import re
-from json import dump
+from json import dump, JSONDecodeError
 from os import path
 from os.path import abspath
 from pathlib import Path
@@ -597,7 +597,11 @@ def download_model(sd_webui_root_dir,
                         max_index_int_name = current_num
 
                 with open(path_to_current_json, 'r') as fi:
-                    dict_current_json = json.load(fi)
+                    try:
+                        dict_current_json = json.load(fi)
+                    except JSONDecodeError as e:
+                        print(f"decode json error. {e} json file by path {path_to_current_json}")
+                        raise e
                     all_names_and_hashes[current_file_name_without_ext] = dict_current_json["hash"]
 
             print(f"max_index_int_name = {max_index_int_name}")
