@@ -583,7 +583,7 @@ def download_model(sd_webui_root_dir,
             else:
                 print(Fore.RED + 'I will not download this!!Unsafe')
                 print(Style.RESET_ALL)
-                print("I will not download this!!Unsafe. You can disable it with --disable-sec-checks true")
+                print("I will not download this!!Unsafe. You can disable it with --disable-sec-checks")
 
             all_names_and_hashes = dict()
             max_index_int_name = 0
