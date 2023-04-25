@@ -146,6 +146,8 @@ def download_file(url: str, file_save_path_str_path: str,
 
             if remove_incompleted_files:
                 os.remove(inc_file_save_str_path)
+                print(Fore.YELLOW + f'Remove  {inc_file_save_str_path} file ok')
+                print(Style.RESET_ALL)
 
             simple_download(url, str(file_save_path))
             if blake3_hash_from_civitai is not None:
