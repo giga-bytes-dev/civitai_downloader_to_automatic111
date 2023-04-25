@@ -132,6 +132,7 @@ def download_file(url: str, file_save_path_str_path: str,
 
             if Path(inc_file_save_str_path).is_file():
                 print(Fore.YELLOW + f'Detected yet exists old incompleted file. Remove')
+                print(Style.RESET_ALL)
                 if remove_incompleted_files:
                     os.remove(inc_file_save_str_path)
                 else:
